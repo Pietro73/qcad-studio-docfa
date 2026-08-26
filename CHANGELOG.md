@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0-rc1 — 2026-08-26
+## 1.0.0-rc2 — 2026-08-26
 
 - Riuniti palette Studio CAD, profilo iniziale e strumenti DOCFA.
 - Aggiunti linea continua con distanza diretta, focus numerico, ORTO
