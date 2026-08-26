@@ -56,20 +56,26 @@ StudioDocfaPolilinea.prototype.beginEvent = function() {
             + " (colore DXF " + categoria.colore + ")");
     }
 
-    var selezione = QInputDialog.getItem(
-        EAction.getMainWindow(),
-        "DOCFA Studio — categoria poligono",
-        "Scegli la categoria del vano/area reale:",
-        labels,
-        0,
-        false
-    );
-    if (selezione === "") {
-        this.terminate();
-        return;
+    // La palette Studio CAD puo' preselezionare A-G e saltare il dialogo.
+    // Il valore viene consumato una sola volta, cosi' il comando DPL normale
+    // continua a mostrare la scelta completa.
+    var indice = RSettings.getIntValue("StudioDocfa/NextCategoryIndex", -1);
+    RSettings.setValue("StudioDocfa/NextCategoryIndex", -1);
+    if (indice < 0 || indice >= labels.length) {
+        var selezione = QInputDialog.getItem(
+            EAction.getMainWindow(),
+            "DOCFA Studio — categoria poligono",
+            "Scegli la categoria del vano/area reale:",
+            labels,
+            0,
+            false
+        );
+        if (selezione === "") {
+            this.terminate();
+            return;
+        }
+        indice = labels.indexOf(selezione);
     }
-
-    var indice = labels.indexOf(selezione);
     if (indice < 0) {
         EAction.handleUserMessage("DOCFA Studio: categoria non riconosciuta.");
         this.terminate();

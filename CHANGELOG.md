@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0-rc1 — 2026-08-26
+
+- Riuniti palette Studio CAD, profilo iniziale e strumenti DOCFA.
+- Aggiunti linea continua con distanza diretta, focus numerico, ORTO
+  persistente, LIBERO e OSNAP diretti.
+- Corretto il caricamento delle icone su Linux: `QIcon` riceve direttamente il
+  percorso e usa SVG locali quando una risorsa nativa QCAD non è disponibile.
+- Aggiunti installer, ripristino e verifica non distruttiva per Linux.
+- Aggiornate le istruzioni di installazione e la guida dei comandi.
+
 ## 0.1.0 — 2026-08-24
 
 - Prima pubblicazione dell'add-on QCAD Studio DOCFA.

@@ -1,76 +1,145 @@
-# QCAD Studio DOCFA
+# QCAD Studio CAD + DOCFA
 
-Add-on ECMAScript per **QCAD Professional 3.32+**, pensato per preparare e
-controllare alcuni elementi grafici di una pratica catastale italiana. Funziona
-su macOS, Windows e Linux: usa solo gli script standard QCAD e non richiede
-servizi cloud o componenti esterni.
+Add-on locale per **QCAD Professional** che riunisce:
 
-> Non è affiliato a RibbonSoft/QCAD né all'Agenzia delle Entrate. Non invia
-> pratiche e non garantisce l'accettazione da parte di DOCFA: verifica finale,
-> rilievo, tavola raster e responsabilità professionale restano dell'operatore.
+- una palette verticale a comandi diretti, leggibile con il tema scuro;
+- comandi e modalità operative più vicini al flusso AutoCAD;
+- ORTO persistente, LIBERO e accesso diretto agli OSNAP;
+- strumenti grafici preliminari per DOCFA;
+- impostazioni iniziali dello Studio per nuovi disegni.
 
-## Cosa fa
+Il progetto è ECMAScript/QtScript, non usa servizi cloud e non contiene dati o
+configurazioni personali. Le icone Autodesk non sono incluse: quelle proprie
+del plugin sono originali; per i comandi QCAD viene usata l'icona nativa con un
+SVG locale di riserva. In questo modo la palette non resta vuota se una build
+Linux espone risorse grafiche diverse.
 
-| Comando | Funzione |
+> Il progetto non è affiliato a RibbonSoft/QCAD, Autodesk o Agenzia delle
+> Entrate. Gli strumenti DOCFA svolgono preparazione e pre-controllo grafico:
+> non validano, firmano o inviano pratiche.
+
+## Funzioni principali
+
+| Area | Funzioni |
 |---|---|
-| `DCORN` / `DCORNICE` | Inserisce una cornice A4/A3 a 1:100, 1:200 o 1:500 nell'origine 0,0; una nuova scelta sostituisce solo la cornice creata dall'add-on. |
-| `DPOL` / `DPL` | Imposta `Docfa_Poligoni` e il colore DXF della categoria, poi avvia Polilinea QCAD. |
-| `DCHK` | Controllo locale di metri, layer, chiusura polilinee, colori e aree geometriche. |
-| `DGUIDA` | Tabella categorie/colori e promemoria del flusso. |
+| Disegno | Linea continua stile CAD, polilinea, rettangolo, cerchio, arco, tratteggio, testo e quote |
+| Modifica | Sposta, copia, ruota, scala, specchia, offset, taglia, stira, cimatura, raccordo, esplodi e cancella |
+| Vista | Zoom ottimizza, finestra, pan, vista precedente e griglia |
+| Precisione | ORTO persistente, LIBERO e OSNAP Auto/estremità/medio/centro/intersezione/entità/perpendicolare/tangente/riferimento |
+| DOCFA | Controllo poligoni, cornici A4/A3, guida e poligoni classificati A/A2/B/C/D/E/F/G |
 
-Le categorie usano **un solo layer** `Docfa_Poligoni`; il colore DXF assegnato
-alla singola polilinea identifica A/A1=1, A2=8, B=2, C=3, D=4, E=5, F=6, G=7.
+Il comando `L` crea segmenti `LINE` consecutivi e separati. Dopo il primo
+punto, orienta il mouse e digita direttamente una distanza, anche con virgola
+(`3,15`), senza fare clic nella riga comando. Invio crea il tratto e mantiene il
+comando attivo; il clic destro termina.
 
-## Installazione
+La digitazione sul disegno viene instradata anche al primo campo numerico
+visibile dei comandi che attendono un valore, ad esempio **Distanza** di Offset.
 
-1. Chiudi QCAD.
-2. Copia la cartella `scripts/Misc/StudioDocfa` contenuta nello ZIP nella
-   cartella dati di QCAD, conservando la stessa struttura.
-3. Riavvia QCAD e usa il menu **Varie**: le quattro azioni compaiono con il
-   prefisso `DOCFA:`.
+## Installazione rapida su Linux
 
-La collocazione della cartella dati dipende dall'installazione QCAD. Dal menu
-QCAD si può normalmente verificare il percorso in **Aiuto → Informazioni**.
-Non copiare questi file dentro l'applicazione QCAD: usare la cartella dati
-utente evita modifiche ai binari e semplifica gli aggiornamenti.
+1. Scarica lo ZIP dell'ultima release e decomprimilo.
+2. Chiudi completamente QCAD.
+3. Nel terminale, dalla cartella decompressa, esegui:
 
-## Cornici incluse
+   ```bash
+   chmod +x installa_linux.sh ripristina_linux.sh verifica_linux.sh
+   ./installa_linux.sh
+   ./verifica_linux.sh
+   ```
 
-Le sei cornici distribuite qui sono state create appositamente per questo
-progetto come semplici rettangoli sul layer `RIQUADRO`, in metri:
+4. Avvia QCAD una volta con `-rescan`, quindi usalo normalmente:
 
-| Formato | 1:100 | 1:200 | 1:500 |
-|---|---:|---:|---:|
-| A4 | 19,50 × 23,50 m | 39,00 × 47,00 m | 97,50 × 117,50 m |
-| A3 | 26,00 × 40,50 m | 52,00 × 81,00 m | 130,00 × 202,50 m |
+   ```bash
+   /percorso/della/tua/installazione/qcad -rescan
+   ```
 
-Non sono cartigli ufficiali o modelli forniti dall'Agenzia delle Entrate. Puoi
-sostituirli con il tuo riquadro interno, rispettando i nomi dei file e facendo
-una prova nella tua procedura di lavoro. `DCORN` elimina soltanto i riferimenti
-ai blocchi con prefisso `STUDIO_DOCFA_CORNICE_`; non cancella un vecchio
-riquadro presente come geometria sciolta nel DXF. I file cornice sono DXF R12
-senza un'unità incorporata: `DCORN` richiede perciò che il disegno destinatario
-sia già impostato in metri.
+L'installer usa per impostazione predefinita
+`~/.local/share/QCAD/QCAD`, salva un backup datato e modifica soltanto la lista
+degli add-on e i tre moduli `StudioDefaults`, `StudioCadUI` e `StudioDocfa`.
 
-## Sviluppo e controlli
+Se QCAD usa percorsi non standard, apri la **Shell ECMAScript** di QCAD e
+stampa:
 
-Le cornici si rigenerano (solo per chi sviluppa il progetto) con:
-
-```bash
-python3 -m pip install -r requirements-dev.txt
-python3 tools/generate_frames.py
+```js
+print(RSettings.getDataLocation());
+print(RSettings.getPath());
 ```
 
-Prima di un rilascio:
+Poi ripeti l'installazione indicando esattamente i due valori:
 
 ```bash
-node --check scripts/Misc/StudioDocfa/StudioDocfaCornice/StudioDocfaCornice.js
-zip -r QCAD_Studio_DOCFA_AddOn.zip scripts
-unzip -t QCAD_Studio_DOCFA_AddOn.zip
+./installa_linux.sh \
+  --data-dir /percorso/restituito/getDataLocation \
+  --config-file /percorso/restituito/getPath
+./verifica_linux.sh \
+  --data-dir /percorso/restituito/getDataLocation \
+  --config-file /percorso/restituito/getPath
 ```
+
+La procedura completa e il ripristino sono in
+[docs/INSTALLAZIONE_LINUX.md](docs/INSTALLAZIONE_LINUX.md).
+
+## Installazione manuale su macOS, Linux o Windows
+
+Con QCAD chiuso, copia queste tre cartelle:
+
+```text
+scripts/Misc/StudioDefaults
+scripts/Misc/StudioCadUI
+scripts/Misc/StudioDocfa
+```
+
+nella cartella `scripts/Misc` sotto il valore restituito da
+`RSettings.getDataLocation()`. Conserva la struttura e riavvia QCAD con
+`-rescan`. Non copiare i file nel bundle dell'applicazione se è disponibile la
+cartella dati utente.
+
+## Comandi e uso
+
+La tabella completa è in [docs/COMANDI.md](docs/COMANDI.md). I comandi più usati
+sono:
+
+| Comando | Azione |
+|---|---|
+| `L` | Linea continua stile CAD con distanza digitata sul disegno |
+| `EO` | ORTO persistente |
+| `EN` | LIBERO (`EN` + snap libero) |
+| `ZA`, `ZE`, `ZO` | Zoom ottimizza |
+| `MV`, `CO`, `RO`, `SZ`, `OF` | Sposta, copia, ruota, scala, offset |
+| `DCORN` | Inserisce una cornice DOCFA |
+| `DPOL` | Avvia un poligono DOCFA classificato |
+| `DCHK` | Pre-controllo grafico locale |
+| `DGUIDA` | Guida alle categorie DOCFA |
+
+## Verifica dopo l'installazione
+
+`./verifica_linux.sh` controlla in modo non distruttivo che tutti gli script e
+gli SVG portabili siano presenti e leggibili. Dopo il riavvio di QCAD verifica
+anche visivamente:
+
+1. palette **Studio CAD** agganciata a sinistra;
+2. icone visibili nei gruppi Disegna, Modifica, Vista, ORTO/OSNAP e DOCFA;
+3. sequenza `L` → primo punto → direzione mouse → `3` → Invio;
+4. ORTO che resta attivo finché non premi LIBERO.
+
+QCAD può mantenere in cache gli script: dopo un aggiornamento chiudilo del
+tutto e avvialo con `-rescan`; durante lo sviluppo è utile anche
+`-always-load-scripts`.
+
+## Sviluppo e test
+
+```bash
+node --test tests/*.js
+bash -n installa_linux.sh ripristina_linux.sh verifica_linux.sh
+```
+
+Le sei cornici incluse sono semplici riquadri creati per il progetto e non
+modelli ufficiali dell'Agenzia delle Entrate. Si rigenerano con
+`tools/generate_frames.py` dopo aver installato `requirements-dev.txt`.
 
 ## Licenza
 
-Codice, documentazione e cornici create per questo repository sono distribuiti
-con licenza [MIT](LICENSE). Marchi, software e procedure DOCFA/QCAD restano
-dei rispettivi titolari.
+Codice, documentazione, icone originali e cornici del repository sono
+distribuiti con licenza [MIT](LICENSE). Marchi, software e procedure citati
+restano dei rispettivi titolari.
