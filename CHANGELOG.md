@@ -8,6 +8,7 @@
 - Corretto il caricamento delle icone su Linux: `QIcon` riceve direttamente il
   percorso e usa SVG locali quando una risorsa nativa QCAD non è disponibile.
 - Aggiunti installer, ripristino e verifica non distruttiva per Linux.
+- Gestita anche una configurazione QCAD con lista `[AddOns]` inizialmente vuota.
 - Aggiornate le istruzioni di installazione e la guida dei comandi.
 
 ## 0.1.0 — 2026-08-24

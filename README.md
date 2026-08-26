@@ -131,6 +131,7 @@ tutto e avvialo con `-rescan`; durante lo sviluppo è utile anche
 
 ```bash
 node --test tests/*.js
+bash tests/test_linux_installer.sh
 bash -n installa_linux.sh ripristina_linux.sh verifica_linux.sh
 ```
 

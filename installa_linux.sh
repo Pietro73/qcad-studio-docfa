@@ -107,6 +107,7 @@ detect_config_file() {
 
 contains_addon() {
     local list=$1 wanted=$2 entry
+    [[ -n "$list" ]] || return 1
     local -a entries=()
     IFS=',' read -r -a entries <<< "$list"
     for entry in "${entries[@]}"; do
