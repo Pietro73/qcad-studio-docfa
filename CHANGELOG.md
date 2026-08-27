@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.0-rc3 — 2026-08-27
+
+- Nuovo comando `scr` (Scala stile AutoCAD) agganciato all'icona Scala della
+  palette: punto base, poi fattore diretto (`2`, `0,5`, anche con virgola)
+  oppure `R` e Invio per il modo riferimento (due estremi di una distanza
+  nota e la lunghezza finale, digitata nella riga comandi). Scala attorno al
+  punto base, annullabile, con instradamento dei tasti dal disegno come per
+  la linea. Base della palette riallineata alla versione installata del
+  25/08 (fix ORTO/snap-lock) che non era mai rientrata nel repo.
+- Installazione multi-piattaforma: `installa.sh`, `ripristina.sh` e
+  `verifica.sh` coprono Linux e macOS (rilevamento automatico dei percorsi),
+  nuovo `installa_windows.ps1` con `-Verifica` e `-Ripristina` integrate.
+  I vecchi nomi `*_linux.sh` sono sostituiti.
+- Ripristinato il fallback delle icone per le build Linux (riserva SVG di
+  gruppo quando la risorsa nativa QCAD manca), perso nel riallineamento.
+- Rimossi `StudioCadMode.js`, `StudioCadOrtho.js` e `StudioCadFree.js`:
+  la gestione ORTO/LIBERO vive ora dentro `StudioCadUI.js` (snap-lock via
+  API documento) e i tre file non erano piu' referenziati.
+
 ## 1.0.0-rc2 — 2026-08-26
 
 - Riuniti palette Studio CAD, profilo iniziale e strumenti DOCFA.

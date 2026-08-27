@@ -11,15 +11,15 @@ printf '#!/usr/bin/env bash\nexit 1\n' > "$test_root/fakebin/pgrep"
 chmod +x "$test_root/fakebin/pgrep"
 printf '[AddOns]\nList=\n' > "$test_root/config/QCAD/QCAD3.conf"
 
-PATH="$test_root/fakebin:$PATH" "$REPO_DIR/installa_linux.sh" \
+PATH="$test_root/fakebin:$PATH" "$REPO_DIR/installa.sh" \
     --data-dir "$test_root/data" \
     --config-file "$test_root/config/QCAD/QCAD3.conf"
-"$REPO_DIR/verifica_linux.sh" \
+"$REPO_DIR/verifica.sh" \
     --data-dir "$test_root/data" \
     --config-file "$test_root/config/QCAD/QCAD3.conf"
-PATH="$test_root/fakebin:$PATH" "$REPO_DIR/installa_linux.sh" \
+PATH="$test_root/fakebin:$PATH" "$REPO_DIR/installa.sh" \
     --data-dir "$test_root/data" \
     --config-file "$test_root/config/QCAD/QCAD3.conf" \
     | grep -F 'nessuna modifica necessaria'
 
-printf 'PASS installer Linux con lista AddOns vuota e seconda esecuzione idempotente.\n'
+printf 'PASS installer con lista AddOns vuota e seconda esecuzione idempotente.\n'

@@ -23,7 +23,7 @@ Linux espone risorse grafiche diverse.
 | Area | Funzioni |
 |---|---|
 | Disegno | Linea continua stile CAD, polilinea, rettangolo, cerchio, arco, tratteggio, testo e quote |
-| Modifica | Sposta, copia, ruota, scala, specchia, offset, taglia, stira, cimatura, raccordo, esplodi e cancella |
+| Modifica | Sposta, copia, ruota, scala (fattore o riferimento stile AutoCAD), specchia, offset, taglia, stira, cimatura, raccordo, esplodi e cancella |
 | Vista | Zoom ottimizza, finestra, pan, vista precedente e griglia |
 | Precisione | ORTO persistente, LIBERO e OSNAP Auto/estremità/medio/centro/intersezione/entità/perpendicolare/tangente/riferimento |
 | DOCFA | Controllo poligoni, cornici A4/A3, guida e poligoni classificati A/A2/B/C/D/E/F/G |
@@ -36,17 +36,37 @@ comando attivo; il clic destro termina.
 La digitazione sul disegno viene instradata anche al primo campo numerico
 visibile dei comandi che attendono un valore, ad esempio **Distanza** di Offset.
 
-## Installazione rapida su Linux
+## Installazione rapida (macOS e Linux)
 
 1. Scarica lo ZIP dell'ultima release e decomprimilo.
 2. Chiudi completamente QCAD.
 3. Nel terminale, dalla cartella decompressa, esegui:
 
    ```bash
-   chmod +x installa_linux.sh ripristina_linux.sh verifica_linux.sh
-   ./installa_linux.sh
-   ./verifica_linux.sh
+   chmod +x installa.sh ripristina.sh verifica.sh
+   ./installa.sh
+   ./verifica.sh
    ```
+
+Lo stesso script rileva il sistema: su Linux usa
+`~/.local/share/QCAD/QCAD`, su macOS
+`~/Library/Application Support/QCAD/QCAD Professional`. In entrambi i casi la
+configurazione è `~/.config/QCAD/QCAD3.conf` (o `.ini`).
+
+## Installazione rapida su Windows
+
+1. Scarica lo ZIP dell'ultima release e decomprimilo.
+2. Chiudi completamente QCAD.
+3. In PowerShell, dalla cartella decompressa, esegui:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\installa_windows.ps1
+   powershell -ExecutionPolicy Bypass -File .\installa_windows.ps1 -Verifica
+   ```
+
+Percorsi predefiniti: dati in `%APPDATA%\QCAD\QCAD Professional`,
+configurazione `%APPDATA%\QCAD\QCAD3.ini` (personalizzabili con `-DataDir` e
+`-ConfigFile`). Il ripristino dal backup si esegue con `-Ripristina`.
 
 4. Avvia QCAD una volta con `-rescan`, quindi usalo normalmente:
 
@@ -69,16 +89,16 @@ print(RSettings.getPath());
 Poi ripeti l'installazione indicando esattamente i due valori:
 
 ```bash
-./installa_linux.sh \
+./installa.sh \
   --data-dir /percorso/restituito/getDataLocation \
   --config-file /percorso/restituito/getPath
-./verifica_linux.sh \
+./verifica.sh \
   --data-dir /percorso/restituito/getDataLocation \
   --config-file /percorso/restituito/getPath
 ```
 
 La procedura completa e il ripristino sono in
-[docs/INSTALLAZIONE_LINUX.md](docs/INSTALLAZIONE_LINUX.md).
+[docs/INSTALLAZIONE.md](docs/INSTALLAZIONE.md).
 
 ## Installazione manuale su macOS, Linux o Windows
 
@@ -106,7 +126,8 @@ sono:
 | `EO` | ORTO persistente |
 | `EN` | LIBERO (`EN` + snap libero) |
 | `ZA`, `ZE`, `ZO` | Zoom ottimizza |
-| `MV`, `CO`, `RO`, `SZ`, `OF` | Sposta, copia, ruota, scala, offset |
+| `MV`, `CO`, `RO`, `OF` | Sposta, copia, ruota, offset |
+| `SCR` | Scala stile AutoCAD: punto base, poi fattore diretto oppure `R` + due estremi + nuova lunghezza |
 | `DCORN` | Inserisce una cornice DOCFA |
 | `DPOL` | Avvia un poligono DOCFA classificato |
 | `DCHK` | Pre-controllo grafico locale |
@@ -114,7 +135,7 @@ sono:
 
 ## Verifica dopo l'installazione
 
-`./verifica_linux.sh` controlla in modo non distruttivo che tutti gli script e
+`./verifica.sh` (macOS/Linux) o `installa_windows.ps1 -Verifica` controlla in modo non distruttivo che tutti gli script e
 gli SVG portabili siano presenti e leggibili. Dopo il riavvio di QCAD verifica
 anche visivamente:
 
@@ -131,8 +152,8 @@ tutto e avvialo con `-rescan`; durante lo sviluppo è utile anche
 
 ```bash
 node --test tests/*.js
-bash tests/test_linux_installer.sh
-bash -n installa_linux.sh ripristina_linux.sh verifica_linux.sh
+bash tests/test_installer.sh
+bash -n installa.sh ripristina.sh verifica.sh
 ```
 
 Le sei cornici incluse sono semplici riquadri creati per il progetto e non

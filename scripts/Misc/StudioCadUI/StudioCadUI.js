@@ -5,7 +5,6 @@
  * Il pannello non modifica il documento: avvia esclusivamente azioni QCAD.
  */
 include("scripts/EAction.js");
-include("StudioCadMode.js");
 
 function StudioCadUI(guiAction) {
     EAction.call(this, guiAction);
@@ -183,6 +182,92 @@ function studioCadRunStep(step) {
     return false;
 }
 
+function studioCadSetSnapLock(enabled) {
+    var appWin = RMainWindowQt.getMainWindow();
+    var di = appWin.getDocumentInterface();
+    if (isNull(di)) {
+        return false;
+    }
+
+    // Usiamo l'API del documento invece di un alias di tastiera: gli alias
+    // cambiano con lingua e profilo e potevano lasciare ORTO libero al primo
+    // punto anche se l'icona era stata premuta.
+    if (di.isSnapLocked() !== enabled) {
+        if (enabled) {
+            di.lockSnap();
+        }
+        else {
+            di.unlockSnap();
+        }
+    }
+    return di.isSnapLocked() === enabled;
+}
+
+function studioCadRestrictionState() {
+    var di = EAction.getMainWindow().getDocumentInterface();
+    if (isNull(di)) {
+        return "none";
+    }
+
+    // Il blocco snap (SQ) indica soltanto che la modalita' deve persistere.
+    // Per il colore dell'icona leggiamo invece la restrizione geometrica
+    // realmente installata nel Document Interface.
+    var restriction = di.getSnapRestriction();
+    // Gli oggetti C++ esposti a QtScript riportano il tipo in String(...),
+    // mentre instanceof restituisce false anche per la classe corretta.
+    var restrictionName = isNull(restriction) ? "" : String(restriction);
+    if (restrictionName.indexOf("RRestrictOrthogonal") !== -1) {
+        return "ortho";
+    }
+    if (restrictionName.indexOf("RRestrictOff") !== -1) {
+        return "free";
+    }
+    return "other";
+}
+
+function studioCadRefreshModeButtons() {
+    var appWin = EAction.getMainWindow();
+    var orthoButton = appWin.findChild("StudioCadButton_OrthoOn");
+    var freeButton = appWin.findChild("StudioCadButton_Free");
+
+    // I pulsanti Snap nativi nascosti possono mantenere un check grafico non
+    // aggiornato dopo EN. La classe della restrizione corrente e' invece la
+    // fonte reale per distinguere ORTO, LIBERO e le altre restrizioni.
+    var detectedState = studioCadRestrictionState();
+    // Durante l'avvio o il cambio di un comando QCAD puo' esporre per pochi
+    // istanti una restrizione nulla / intermedia. Ignorarla evita che il
+    // pulsante si spenga e si riaccenda, producendo il lampeggio.
+    if (detectedState === "ortho" || detectedState === "free") {
+        StudioCadUI.lastRestrictionState = detectedState;
+    }
+    var restrictionState = StudioCadUI.lastRestrictionState;
+    var orthoActive = restrictionState === "ortho";
+    var freeActive = restrictionState === "free";
+
+    if (!isNull(orthoButton)) {
+        if (orthoButton.checked !== orthoActive) {
+            orthoButton.checked = orthoActive;
+        }
+        var orthoToolTip = orthoActive ?
+            qsTr("ORTO ATTIVO - resta attivo finche non premi LIBERO") :
+            qsTr("ORTO disattivo - premi per attivarlo in modo persistente");
+        if (orthoButton.toolTip !== orthoToolTip) {
+            orthoButton.toolTip = orthoToolTip;
+        }
+    }
+    if (!isNull(freeButton)) {
+        if (freeButton.checked !== freeActive) {
+            freeButton.checked = freeActive;
+        }
+        var freeToolTip = freeActive ?
+            qsTr("LIBERO ATTIVO - ORTO disattivato") :
+            qsTr("LIBERO - premi per disattivare ORTO e lo snap forzato");
+        if (freeButton.toolTip !== freeToolTip) {
+            freeButton.toolTip = freeToolTip;
+        }
+    }
+}
+
 function studioCadTrigger(definition) {
     return function() {
         if (!isNull(definition.category) && !isNaN(definition.category)) {
@@ -290,7 +375,9 @@ function studioCadAddGroup(layout, parent, title, definitions, basePath, fallbac
     grid.setHorizontalSpacing(2);
     grid.setVerticalSpacing(2);
     for (var i=0; i<definitions.length; i++) {
-        if (isNull(definitions[i].fallbackIcon)) {
+        // La riserva di gruppo copre le build Linux dove la risorsa nativa
+        // dell'icona QCAD puo' mancare: la palette non resta mai vuota.
+        if (isNull(definitions[i].fallbackIcon) && !isNull(fallbackIcon)) {
             definitions[i].fallbackIcon = fallbackIcon;
         }
         studioCadAddButton(grid, group, definitions[i], Math.floor(i / 4), i % 4, basePath);
@@ -347,7 +434,7 @@ function studioCadBuildPalette(basePath) {
         {id:"Move", title:"Sposta", command:"mv", icon:":scripts/Modify/Translate/Translate-inverse.svg"},
         {id:"Copy", title:"Copia", command:"co", icon:"copy-cad.svg"},
         {id:"Rotate", title:"Ruota", command:"ro", icon:":scripts/Modify/Rotate/Rotate-inverse.svg"},
-        {id:"Scale", title:"Scala per riferimento", command:"sz", icon:":scripts/Modify/Scale/Scale-inverse.svg"},
+        {id:"Scale", title:"Scala: fattore (2, 0,5...) o R per riferimento", command:"scr", icon:":scripts/Modify/Scale/Scale-inverse.svg"},
         {id:"Mirror", title:"Specchia", command:"mi", icon:":scripts/Modify/Mirror/Mirror-inverse.svg"},
         {id:"Offset", title:"Offset", command:"of", icon:":scripts/Pro/Modify/OffsetPro/OffsetPro-inverse.svg"},
         {id:"Trim", title:"Taglia / estendi", command:"tr", icon:":scripts/Modify/Trim/Trim-inverse.svg"},
@@ -401,7 +488,7 @@ function studioCadBuildPalette(basePath) {
     studioCadAddGroup(layout, content, qsTr("Modifica"), modify, basePath, "edit.svg");
     studioCadAddGroup(layout, content, qsTr("Vista"), view, basePath, "view.svg");
     studioCadAddGroup(layout, content, qsTr("Orto / Libero / OSNAP"), orthoSnap, basePath, "snap.svg");
-    studioCadAddGroup(layout, content, qsTr("DOCFA"), docfa, basePath, "docfa-guide.svg");
+    studioCadAddGroup(layout, content, qsTr("DOCFA"), docfa, basePath, "docfa-check.svg");
     layout.addStretch(1);
 
     scroll.setWidget(content);
@@ -435,18 +522,14 @@ StudioCadUI.init = function(basePath) {
 
     var actions = RGuiAction.getActions();
     var copyExists = false;
-    var orthoExists = false;
-    var freeExists = false;
+    var scalaExists = false;
     var lineAction;
     for (var i=0; i<actions.length; i++) {
         if (actions[i].getScriptClass() === "StudioCadCopy") {
             copyExists = true;
         }
-        if (actions[i].getScriptClass() === "StudioCadOrtho") {
-            orthoExists = true;
-        }
-        if (actions[i].getScriptClass() === "StudioCadFree") {
-            freeExists = true;
+        if (actions[i].getScriptClass() === "StudioCadScala") {
+            scalaExists = true;
         }
         if (actions[i].getScriptClass() === "StudioCadLine") {
             lineAction = actions[i];
@@ -466,32 +549,23 @@ StudioCadUI.init = function(basePath) {
         copyAction.setWidgetNames(["ModifyMenu"]);
     }
 
-    if (!orthoExists) {
-        var orthoAction = new RGuiAction(
-            qsTr("ORTO persistente"),
+    if (!scalaExists) {
+        var scalaAction = new RGuiAction(
+            qsTr("Scala (fattore o riferimento)"),
             RMainWindowQt.getMainWindow()
         );
-        orthoAction.setRequiresDocument(true);
-        orthoAction.setStatusTip(qsTr(
-            "Attiva la restrizione ortogonale finche non viene scelto LIBERO"
+        scalaAction.setRequiresDocument(true);
+        // Niente requiresSelection: senza selezione il comando spiega cosa
+        // manca invece di restare un bottone muto e disabilitato.
+        scalaAction.setStatusTip(qsTr(
+            "Scala stile AutoCAD: punto base, poi fattore diretto oppure R per riferimento"
         ));
-        orthoAction.setScriptFile(basePath + "/StudioCadOrtho.js");
-        orthoAction.setDefaultCommands(["eo", "ortho"]);
-        orthoAction.setIcon(basePath + "/icons/snap.svg");
-    }
-
-    if (!freeExists) {
-        var freeAction = new RGuiAction(
-            qsTr("LIBERO"),
-            RMainWindowQt.getMainWindow()
-        );
-        freeAction.setRequiresDocument(true);
-        freeAction.setStatusTip(qsTr(
-            "Disattiva ORTO persistente e passa allo snap libero"
-        ));
-        freeAction.setScriptFile(basePath + "/StudioCadFree.js");
-        freeAction.setDefaultCommands(["en", "libero"]);
-        freeAction.setIcon(basePath + "/icons/snap.svg");
+        scalaAction.setScriptFile(basePath + "/StudioCadScala.js");
+        scalaAction.setDefaultCommands(["scr", "scalarif"]);
+        scalaAction.setIcon(":scripts/Modify/Scale/Scale-inverse.svg");
+        scalaAction.setGroupSortOrder(13100);
+        scalaAction.setSortOrder(102);
+        scalaAction.setWidgetNames(["ModifyMenu"]);
     }
 
     if (isNull(lineAction)) {

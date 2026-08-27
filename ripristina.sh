@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Ripristina il solo stato precedentemente salvato dall'installer Studio QCAD.
+# Supporta Linux e macOS: cambia solo la cartella dati predefinita di QCAD.
 set -Eeuo pipefail
 IFS=$'\n\t'
 umask 077
@@ -18,11 +19,20 @@ fail() {
 
 usage() {
     cat <<'EOF'
-Uso: ./ripristina_linux.sh [--data-dir PERCORSO] [--config-file FILE] [--backup-dir CARTELLA]
+Uso: ./ripristina.sh [--data-dir PERCORSO] [--config-file FILE] [--backup-dir CARTELLA]
 
-Ripristina la lista AddOns precedente e i soli moduli Studio salvati dal backup.
-QCAD deve essere chiuso. Se --backup-dir manca viene scelto il backup piu recente.
+Ripristina la lista AddOns precedente e i soli moduli Studio salvati dal backup
+su Linux o macOS. QCAD deve essere chiuso. Se --backup-dir manca viene scelto
+il backup piu recente. Per Windows usare installa_windows.ps1 -Ripristina.
 EOF
+}
+
+default_data_dir() {
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        printf '%s\n' "$HOME/Library/Application Support/QCAD/QCAD Professional"
+    else
+        printf '%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/QCAD/QCAD"
+    fi
 }
 
 require_absolute_path() {
@@ -36,6 +46,8 @@ qcad_is_running() {
     pgrep -x 'qcad' >/dev/null 2>&1 \
         || pgrep -x 'qcad-bin' >/dev/null 2>&1 \
         || pgrep -x 'QCAD' >/dev/null 2>&1 \
+        || pgrep -x 'QCAD-Pro' >/dev/null 2>&1 \
+        || pgrep -f 'QCAD[^/]*\.app/Contents/MacOS/' >/dev/null 2>&1 \
         || pgrep -f '/qcad(-bin)?([[:space:]]|$)' >/dev/null 2>&1
 }
 
@@ -87,7 +99,7 @@ done
 
 qcad_is_running && fail 'QCAD risulta aperto: chiuderlo completamente prima del ripristino.'
 if [[ -z "$data_dir" ]]; then
-    data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/QCAD/QCAD"
+    data_dir="$(default_data_dir)"
 fi
 require_absolute_path "$data_dir" '--data-dir'
 

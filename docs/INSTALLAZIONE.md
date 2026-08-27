@@ -1,8 +1,18 @@
-# QCAD Studio Linux — installazione 25/08/2026
+# QCAD Studio — installazione (macOS, Linux, Windows)
 
 Pacchetto portabile delle palette Studio CAD, degli strumenti locali DOCFA e
-del profilo iniziale Studio per QCAD Professional su Linux. Non contiene dati,
+del profilo iniziale Studio per QCAD Professional. Non contiene dati,
 disegni o configurazioni personali e non modifica l'installazione del programma.
+
+`installa.sh` copre macOS e Linux (rileva il sistema da solo); su Windows si
+usa `installa_windows.ps1`, che integra anche `-Verifica` e `-Ripristina`.
+Percorsi predefiniti:
+
+| Sistema | Cartella dati | Configurazione |
+|---|---|---|
+| Linux | `~/.local/share/QCAD/QCAD` | `~/.config/QCAD/QCAD3.conf` o `.ini` |
+| macOS | `~/Library/Application Support/QCAD/QCAD Professional` | `~/.config/QCAD/QCAD3.ini` |
+| Windows | `%APPDATA%\QCAD\QCAD Professional` | `%APPDATA%\QCAD\QCAD3.ini` |
 
 ## Prerequisiti
 
@@ -37,21 +47,21 @@ predefinita i percorsi XDG `~/.local/share/QCAD/QCAD` e cerca, in quest'ordine,
 3. Rendere eseguibili gli script, una sola volta:
 
    ```bash
-   chmod +x installa_linux.sh ripristina_linux.sh verifica_linux.sh
+   chmod +x installa.sh ripristina.sh verifica.sh
    ```
 
 4. Eseguire:
 
    ```bash
-   ./installa_linux.sh
-   ./verifica_linux.sh
+   ./installa.sh
+   ./verifica.sh
    ```
 
 Per una configurazione o directory dati non standard, usare i valori ottenuti
 con `RSettings`:
 
 ```bash
-./installa_linux.sh --data-dir /percorso/dati/QCAD --config-file /percorso/configurazione/QCAD3.conf
+./installa.sh --data-dir /percorso/dati/QCAD --config-file /percorso/configurazione/QCAD3.conf
 ```
 
 L'installer confronta i tre moduli prima di copiarli, salva un backup datato
@@ -125,7 +135,7 @@ Nella palette **Studio CAD** verificare inoltre il gruppo
 La palette carica direttamente le icone native di QCAD; se una build Linux non
 espone la risorsa prevista usa gli SVG chiari inclusi nel plugin. Non dipende
 da `autoPath`, che in alcune distribuzioni lasciava visibile il pulsante ma
-senza immagine. `verifica_linux.sh` controlla che tutti gli SVG di riserva siano
+senza immagine. `verifica.sh` controlla che tutti gli SVG di riserva siano
 stati copiati e risultino leggibili.
 
 Per i comandi che attendono un numero non occorre spostare il puntatore nella
@@ -148,7 +158,7 @@ percorsi con `RSettings.getDataLocation()` e `RSettings.getPath()`.
 Con QCAD chiuso, eseguire:
 
 ```bash
-./ripristina_linux.sh
+./ripristina.sh
 ```
 
 Il comando sceglie il backup Studio piu' recente associato alla configurazione
@@ -156,7 +166,7 @@ selezionata. Per indicarne uno preciso (raccomandato quando vi sono piu'
 installazioni), usare il percorso stampato dall'installer:
 
 ```bash
-./ripristina_linux.sh --data-dir /percorso/dati/QCAD \
+./ripristina.sh --data-dir /percorso/dati/QCAD \
   --config-file /percorso/configurazione/QCAD3.conf \
   --backup-dir /percorso/backup-studio-qcad/GGMMAAAA-HHMMSS
 ```

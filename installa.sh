@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Installa esclusivamente gli add-on del pacchetto e la sola lista AddOns QCAD.
+# Supporta Linux e macOS: cambia solo la cartella dati predefinita di QCAD.
 set -Eeuo pipefail
 IFS=$'\n\t'
 umask 077
@@ -22,9 +23,7 @@ readonly -a REQUIRED_UI_FILES=(
     'StudioCadUIInit.js'
     'StudioCadLine.js'
     'StudioCadCopy.js'
-    'StudioCadMode.js'
-    'StudioCadOrtho.js'
-    'StudioCadFree.js'
+    'StudioCadScala.js'
     'icons/draw.svg'
     'icons/edit.svg'
     'icons/view.svg'
@@ -59,11 +58,23 @@ fail() {
 
 usage() {
     cat <<'EOF'
-Uso: ./installa_linux.sh [--data-dir PERCORSO] [--config-file FILE]
+Uso: ./installa.sh [--data-dir PERCORSO] [--config-file FILE]
 
-Installa le palette Studio CAD, gli strumenti DOCFA e il profilo Studio in QCAD.
-QCAD deve essere chiuso. Senza opzioni usa i percorsi XDG dell'utente corrente.
+Installa le palette Studio CAD, gli strumenti DOCFA e il profilo Studio in QCAD
+su Linux o macOS. QCAD deve essere chiuso. Senza opzioni usa i percorsi
+predefiniti dell'utente corrente (XDG su Linux, Application Support su macOS).
+Per Windows usare installa_windows.ps1.
 EOF
+}
+
+default_data_dir() {
+    # QCAD tiene la configurazione in ~/.config/QCAD su entrambi i sistemi,
+    # ma la cartella dati segue le convenzioni della piattaforma.
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        printf '%s\n' "$HOME/Library/Application Support/QCAD/QCAD Professional"
+    else
+        printf '%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/QCAD/QCAD"
+    fi
 }
 
 trim() {
@@ -83,6 +94,8 @@ qcad_is_running() {
     pgrep -x 'qcad' >/dev/null 2>&1 \
         || pgrep -x 'qcad-bin' >/dev/null 2>&1 \
         || pgrep -x 'QCAD' >/dev/null 2>&1 \
+        || pgrep -x 'QCAD-Pro' >/dev/null 2>&1 \
+        || pgrep -f 'QCAD[^/]*\.app/Contents/MacOS/' >/dev/null 2>&1 \
         || pgrep -f '/qcad(-bin)?([[:space:]]|$)' >/dev/null 2>&1
 }
 
@@ -220,7 +233,7 @@ done
 qcad_is_running && fail 'QCAD risulta aperto: chiuderlo completamente prima dell installazione.'
 
 if [[ -z "$data_dir" ]]; then
-    data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/QCAD/QCAD"
+    data_dir="$(default_data_dir)"
 fi
 require_absolute_path "$data_dir" '--data-dir'
 for addon_relative_path in "${ADDON_RELATIVE_PATHS[@]}"; do
@@ -284,4 +297,4 @@ fi
 rollback_needed=false
 trap - ERR
 printf 'Installazione completata. Backup: %s\n' "$backup_dir"
-printf 'Controllo aggiuntivo: ./verifica_linux.sh --data-dir %q --config-file %q\n' "$data_dir" "$config_file"
+printf 'Controllo aggiuntivo: ./verifica.sh --data-dir %q --config-file %q\n' "$data_dir" "$config_file"

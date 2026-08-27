@@ -32,7 +32,8 @@ alias senza distinzione fra maiuscole e minuscole.
 | `MV` | Sposta, eliminando l'originale senza finestra copie |
 | `CO` | Copia, mantenendo l'originale |
 | `RO` | Ruota intorno al punto indicato |
-| `SZ` | Scala, anche per riferimento |
+| `SCR` | Scala stile AutoCAD: punto base, fattore diretto (`2`, `0,5`) oppure `R` + due estremi + nuova lunghezza |
+| `SZ` | Scala nativa QCAD (dialogo fattore) |
 | `MI` | Specchia |
 | `OF` | Offset |
 | `TR` | Taglia / estendi |

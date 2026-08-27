@@ -8,11 +8,6 @@ const sourcePath = path.join(
     __dirname,
     "../scripts/Misc/StudioCadUI/StudioCadUI.js"
 );
-const modeSourcePath = path.join(
-    __dirname,
-    "../scripts/Misc/StudioCadUI/StudioCadMode.js"
-);
-
 function loadStudioCadUI() {
     const sandbox = {
         include() {},
@@ -27,9 +22,6 @@ function loadStudioCadUI() {
         keyReleaseEvent() {}
     };
     vm.createContext(sandbox);
-    vm.runInContext(fs.readFileSync(modeSourcePath, "utf8"), sandbox, {
-        filename: modeSourcePath
-    });
     vm.runInContext(fs.readFileSync(sourcePath, "utf8"), sandbox, {
         filename: sourcePath
     });
@@ -312,10 +304,10 @@ test("ORTO persistente usa direttamente il blocco snap del documento", () => {
     assert.deepEqual(operations, ["lock", "unlock"]);
 });
 
-test("registra EO ed EN come azioni proprie e non come semplici alias nativi", () => {
+test("EO ed EN pilotano i bottoni nativi di restrizione con blocco snap", () => {
     const source = fs.readFileSync(sourcePath, "utf8");
-    assert.match(source, /StudioCadOrtho\.js/);
-    assert.match(source, /setDefaultCommands\(\["eo", "ortho"\]\)/);
-    assert.match(source, /StudioCadFree\.js/);
-    assert.match(source, /setDefaultCommands\(\["en", "libero"\]\)/);
+    assert.match(source, /command:"eo", target:"ToolButtonRestrictOrthogonal", snapLock:true/);
+    assert.match(source, /target:"ToolButtonRestrictOff", command:"en"/);
+    assert.match(source, /target:"ToolButtonSnapFree", command:"sf"/);
+    assert.match(source, /function studioCadSetSnapLock/);
 });

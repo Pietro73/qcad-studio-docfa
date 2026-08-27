@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verifica non distruttiva dell'installazione QCAD Studio su Linux.
+# Verifica non distruttiva dell'installazione QCAD Studio su Linux e macOS.
 set -Eeuo pipefail
 IFS=$'\n\t'
 
@@ -13,9 +13,7 @@ readonly -a REQUIRED_FILES=(
     'scripts/Misc/StudioCadUI/StudioCadUIInit.js'
     'scripts/Misc/StudioCadUI/StudioCadLine.js'
     'scripts/Misc/StudioCadUI/StudioCadCopy.js'
-    'scripts/Misc/StudioCadUI/StudioCadMode.js'
-    'scripts/Misc/StudioCadUI/StudioCadOrtho.js'
-    'scripts/Misc/StudioCadUI/StudioCadFree.js'
+    'scripts/Misc/StudioCadUI/StudioCadScala.js'
     'scripts/Misc/StudioCadUI/icons/draw.svg'
     'scripts/Misc/StudioCadUI/icons/edit.svg'
     'scripts/Misc/StudioCadUI/icons/view.svg'
@@ -50,8 +48,16 @@ readonly -a ADDON_RELATIVE_PATHS=(
 )
 
 fail_usage() {
-    printf 'Uso: ./verifica_linux.sh [--data-dir PERCORSO] [--config-file FILE]\n' >&2
+    printf 'Uso: ./verifica.sh [--data-dir PERCORSO] [--config-file FILE]\n' >&2
     exit 2
+}
+
+default_data_dir() {
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        printf '%s\n' "$HOME/Library/Application Support/QCAD/QCAD Professional"
+    else
+        printf '%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/QCAD/QCAD"
+    fi
 }
 
 detect_config_file() {
@@ -76,7 +82,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -n "$data_dir" ]] || data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/QCAD/QCAD"
+[[ -n "$data_dir" ]] || data_dir="$(default_data_dir)"
 [[ "$data_dir" == /* && "$data_dir" != / ]] || { printf 'FAIL percorso dati non valido: %s\n' "$data_dir"; exit 1; }
 if [[ -z "$config_file" ]]; then
     config_file="$(detect_config_file)" || config_file=''
