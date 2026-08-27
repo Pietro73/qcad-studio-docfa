@@ -54,9 +54,31 @@ visibile dei comandi che attendono un valore, ad esempio **Distanza** di Offset.
    /percorso/della/tua/installazione/qcad -rescan
    ```
 
-L'installer usa per impostazione predefinita
-`~/.local/share/QCAD/QCAD`, salva un backup datato e modifica soltanto la lista
-degli add-on e i tre moduli `StudioDefaults`, `StudioCadUI` e `StudioDocfa`.
+L'installer salva un backup datato e modifica soltanto la lista degli add-on e i
+tre moduli `StudioDefaults`, `StudioCadUI` e `StudioDocfa`.
+
+### Cartella dati: attenzione all'edizione di QCAD
+
+QCAD ricava la cartella degli add-on dal proprio nome applicazione, che cambia
+da edizione a edizione:
+
+| Edizione | Cartella dati |
+|---|---|
+| QCAD community (pacchetti di distribuzione) | `~/.local/share/QCAD/QCAD` |
+| QCAD Professional | `~/.local/share/QCAD/QCAD Professional` |
+
+Le due edizioni condividono `~/.config/QCAD/QCAD3.conf` ma **non** gli add-on.
+Installare nella cartella sbagliata non produce alcun errore: QCAD non trova i
+moduli, riscrive `[AddOns] List` a ogni avvio e la palette semplicemente non
+compare.
+
+Senza `--data-dir` gli script chiedono la cartella dati a ogni QCAD trovato sul
+sistema (avviandolo con `-no-gui` su una configurazione temporanea) e operano su
+tutte le edizioni rilevate. Per limitarsi a una sola:
+
+```bash
+./installa_linux.sh --data-dir "$HOME/.local/share/QCAD/QCAD Professional"
+```
 
 Se QCAD usa percorsi non standard, apri la **Shell ECMAScript** di QCAD e
 stampa:

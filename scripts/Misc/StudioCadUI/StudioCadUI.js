@@ -224,6 +224,16 @@ function studioCadTrigger(definition) {
 }
 
 function studioCadResolveIconPath(iconPath, basePath) {
+    if (iconPath.indexOf(":scripts/") === 0 ||
+            iconPath.indexOf(":/scripts/") === 0) {
+        var relativePath = iconPath.replace(/^:\/*/, "");
+        var appPath = RSettings.getApplicationPath();
+        var filePath = appPath + "/" + relativePath;
+        var fileInfo = new QFileInfo(filePath);
+        if (fileInfo.exists() && fileInfo.isFile()) {
+            return filePath;
+        }
+    }
     if (iconPath.indexOf(":") === 0 || iconPath.indexOf("/") === 0) {
         return iconPath;
     }
@@ -240,19 +250,64 @@ function studioCadIconIsNull(icon) {
     return icon.isNull === true;
 }
 
+function studioCadPngFallbackPath(iconPath) {
+    if (iconPath.match(/\.svg$/i)) {
+        return iconPath.replace(/\.svg$/i, ".png");
+    }
+    return undefined;
+}
+
+function studioCadIconHasPixmap(icon) {
+    if (studioCadIconIsNull(icon)) {
+        return false;
+    }
+    try {
+        var pixmap = icon.pixmap(new QSize(24, 24));
+        if (!isNull(pixmap)) {
+            if (typeof pixmap.isNull === "function") {
+                return !pixmap.isNull();
+            }
+            if (!isNull(pixmap.isNull)) {
+                return pixmap.isNull !== true;
+            }
+        }
+    }
+    catch (e) {
+        return true;
+    }
+    return true;
+}
+
+function studioCadLoadIconPath(iconPath) {
+    var icon = new QIcon(iconPath);
+    if (studioCadIconHasPixmap(icon)) {
+        return icon;
+    }
+
+    var pngPath = studioCadPngFallbackPath(iconPath);
+    if (!isNull(pngPath)) {
+        icon = new QIcon(pngPath);
+        if (studioCadIconHasPixmap(icon)) {
+            return icon;
+        }
+    }
+    return icon;
+}
+
 function studioCadLoadIcon(definition, basePath) {
     var iconPath = studioCadResolveIconPath(definition.icon, basePath);
 
-    // QIcon accetta direttamente sia i percorsi reali sia le risorse Qt con
-    // prefisso ":". autoPath rendeva invece vuote varie icone nelle build
-    // Linux di QCAD, pur lasciando visibile la palette.
-    var icon = new QIcon(iconPath);
-    if (!studioCadIconIsNull(icon)) {
+    // Nelle build Linux le icone QCAD possono essere file reali sotto la
+    // cartella applicazione oppure risorse Qt. Alcuni QIcon non nulli non
+    // producono pixmap: in quel caso passa al fallback locale, prima SVG e
+    // poi PNG pre-renderizzato per le build senza icon engine SVG funzionante.
+    var icon = studioCadLoadIconPath(iconPath);
+    if (studioCadIconHasPixmap(icon)) {
         return icon;
     }
 
     if (!isNull(definition.fallbackIcon)) {
-        icon = new QIcon(studioCadResolveIconPath(
+        icon = studioCadLoadIconPath(studioCadResolveIconPath(
             definition.fallbackIcon,
             basePath
         ));
@@ -263,8 +318,8 @@ function studioCadLoadIcon(definition, basePath) {
 function studioCadAddButton(grid, parent, definition, row, column, basePath) {
     var button = new QToolButton(parent);
     button.objectName = "StudioCadButton_" + definition.id;
-    button.icon = studioCadLoadIcon(definition, basePath);
-    button.iconSize = new QSize(27, 27);
+    button.setIcon(studioCadLoadIcon(definition, basePath));
+    button.setIconSize(new QSize(27, 27));
     button.setFixedSize(new QSize(35, 35));
     button.autoRaise = true;
     if (definition.modeButton === true) {
@@ -409,6 +464,22 @@ function studioCadBuildPalette(basePath) {
     appWin.addDockWidget(Qt.LeftDockWidgetArea, dock);
     dock.visible = true;
     dock.show();
+
+    // QCAD ripristina il layout dei pannelli agganciati (chiave DockappWindows
+    // in QCAD3.conf) DOPO l'init degli add-on. Se quel layout e' stato salvato
+    // durante un avvio in cui l'add-on non si era caricato, il ripristino
+    // nasconde di nuovo la palette e la situazione si autoconferma a ogni
+    // avvio successivo. Un timer a scatto singolo riafferma la visibilita'
+    // appena il ripristino e' concluso, cioe' al primo giro di event loop.
+    StudioCadUI.paletteShowTimer = new QTimer(appWin);
+    StudioCadUI.paletteShowTimer.singleShot = true;
+    StudioCadUI.paletteShowTimer.timeout.connect(function() {
+        if (!isNull(dock) && !dock.visible) {
+            dock.visible = true;
+            dock.show();
+        }
+    });
+    StudioCadUI.paletteShowTimer.start(0);
 
     // Aggiorna l'evidenziazione anche se ORTO / LIBERO vengono attivati con
     // la tastiera o dal menu Snap. Il polling e' leggero e segue il documento

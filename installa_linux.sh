@@ -42,6 +42,23 @@ readonly -a REQUIRED_UI_FILES=(
     'icons/docfa-e.svg'
     'icons/docfa-f.svg'
     'icons/docfa-g.svg'
+    'icons/draw.png'
+    'icons/edit.png'
+    'icons/view.png'
+    'icons/snap.png'
+    'icons/copy-cad.png'
+    'icons/docfa-check.png'
+    'icons/docfa-frame.png'
+    'icons/docfa-guide.png'
+    'icons/docfa-polygon.png'
+    'icons/docfa-a.png'
+    'icons/docfa-a2.png'
+    'icons/docfa-b.png'
+    'icons/docfa-c.png'
+    'icons/docfa-d.png'
+    'icons/docfa-e.png'
+    'icons/docfa-f.png'
+    'icons/docfa-g.png'
 )
 
 data_dir=''
@@ -62,7 +79,9 @@ usage() {
 Uso: ./installa_linux.sh [--data-dir PERCORSO] [--config-file FILE]
 
 Installa le palette Studio CAD, gli strumenti DOCFA e il profilo Studio in QCAD.
-QCAD deve essere chiuso. Senza opzioni usa i percorsi XDG dell'utente corrente.
+QCAD deve essere chiuso. Senza --data-dir l'installer chiede a ogni QCAD trovato
+la propria cartella dati (community e Professional ne usano una diversa) e
+installa in tutte le edizioni rilevate.
 EOF
 }
 
@@ -103,6 +122,67 @@ detect_config_file() {
         fi
     done
     return 1
+}
+
+# QCAD ricava la cartella dati dal nome applicazione: la community usa "QCAD",
+# QCAD Professional usa "QCAD Professional". Le due edizioni condividono
+# QCAD3.conf ma non gli add-on, quindi installare nella cartella sbagliata
+# lascia la palette invisibile senza alcun errore. Il nome applicazione non e'
+# deducibile dai file su disco: lo si chiede a QCAD stesso, in modalita' senza
+# interfaccia e su una configurazione temporanea per non toccare quella reale.
+qcad_launchers() {
+    local launcher directory
+    for launcher in $(command -v qcad 2>/dev/null || true); do
+        printf '%s\n' "$launcher"
+    done
+    while IFS= read -r launcher; do
+        [[ -n "$launcher" ]] || continue
+        directory="$(dirname -- "$launcher")"
+        if [[ -x "$directory/qcad" ]]; then
+            # I lanciatori 'qcad' impostano LD_LIBRARY_PATH: senza di loro
+            # 'qcad-bin' delle build scaricate non parte.
+            printf '%s\n' "$directory/qcad"
+        else
+            printf '%s\n' "$launcher"
+        fi
+    done < <(find "$HOME/opt" "$HOME/.local/opt" /opt /usr/local/lib /usr/lib \
+        -maxdepth 4 -type f -name 'qcad-bin' -print 2>/dev/null || true)
+}
+
+probe_data_dir() {
+    local launcher=$1 probe_script temporary_config output
+    probe_script="$(mktemp "${TMPDIR:-/tmp}/studio-qcad-probe.XXXXXX.js")" || return 1
+    temporary_config="$(mktemp "${TMPDIR:-/tmp}/studio-qcad-conf.XXXXXX")" || {
+        rm -f -- "$probe_script"
+        return 1
+    }
+    printf 'qDebug("STUDIO_DATA_DIR=" + RSettings.getDataLocation());\n' > "$probe_script"
+    output="$(timeout 180 "$launcher" -no-gui -allow-multiple-instances \
+        -config "$temporary_config" -exec "$probe_script" -quit 2>&1 \
+        | sed -n 's/.*STUDIO_DATA_DIR=//p' | head -n 1)" || output=''
+    rm -f -- "$probe_script" "$temporary_config"
+    [[ "$output" == /* ]] || return 1
+    printf '%s\n' "$output"
+}
+
+detect_data_dirs() {
+    local base="${XDG_DATA_HOME:-$HOME/.local/share}/QCAD"
+    local -a dirs=()
+    local launcher detected
+    local -A seen=()
+
+    while IFS= read -r launcher; do
+        [[ -n "$launcher" && -x "$launcher" ]] || continue
+        launcher="$(readlink -f -- "$launcher" 2>/dev/null || printf '%s' "$launcher")"
+        [[ -n "${seen[$launcher]:-}" ]] && continue
+        seen[$launcher]=1
+        if detected="$(probe_data_dir "$launcher")"; then
+            dirs+=("$detected")
+        fi
+    done < <(qcad_launchers)
+
+    [[ ${#dirs[@]} -gt 0 ]] || dirs+=("$base/QCAD")
+    printf '%s\n' "${dirs[@]}" | LC_ALL=C sort -u
 }
 
 contains_addon() {
@@ -219,19 +299,35 @@ for required_ui_file in "${REQUIRED_UI_FILES[@]}"; do
 done
 qcad_is_running && fail 'QCAD risulta aperto: chiuderlo completamente prima dell installazione.'
 
-if [[ -z "$data_dir" ]]; then
-    data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/QCAD/QCAD"
-fi
-require_absolute_path "$data_dir" '--data-dir'
-for addon_relative_path in "${ADDON_RELATIVE_PATHS[@]}"; do
-    ADDONS+=("$data_dir/$addon_relative_path")
-done
-
 if [[ -z "$config_file" ]]; then
     config_file="$(detect_config_file)" || fail 'Configurazione QCAD non trovata. Avviare QCAD una volta o usare --config-file FILE.'
 fi
 require_absolute_path "$config_file" '--config-file'
 [[ -f "$config_file" && -r "$config_file" && -w "$config_file" ]] || fail "Configurazione non leggibile o non scrivibile: $config_file"
+
+if [[ -z "$data_dir" ]]; then
+    declare -a detected_data_dirs=()
+    while IFS= read -r detected_data_dir; do
+        [[ -n "$detected_data_dir" ]] && detected_data_dirs+=("$detected_data_dir")
+    done < <(detect_data_dirs)
+    [[ ${#detected_data_dirs[@]} -gt 0 ]] || fail 'Nessuna installazione QCAD rilevata: usare --data-dir PERCORSO.'
+    if [[ ${#detected_data_dirs[@]} -gt 1 ]]; then
+        # Community e Professional convivono spesso sullo stesso account e
+        # leggono cartelle dati diverse: si installa in tutte le edizioni
+        # rilevate, una esecuzione per cartella con backup separato.
+        for detected_data_dir in "${detected_data_dirs[@]}"; do
+            printf 'Edizione QCAD rilevata: %s\n' "$detected_data_dir"
+            "$SCRIPT_DIR/${BASH_SOURCE[0]##*/}" \
+                --data-dir "$detected_data_dir" --config-file "$config_file"
+        done
+        exit 0
+    fi
+    data_dir="${detected_data_dirs[0]}"
+fi
+require_absolute_path "$data_dir" '--data-dir'
+for addon_relative_path in "${ADDON_RELATIVE_PATHS[@]}"; do
+    ADDONS+=("$data_dir/$addon_relative_path")
+done
 
 current_list="$(get_addons_list)" || fail 'La configurazione non contiene [AddOns] List: non viene modificata.'
 desired_list=$current_list

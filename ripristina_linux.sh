@@ -4,6 +4,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 umask 077
 
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 readonly BACKUP_NAME='backup-studio-qcad'
 readonly -a MODULES=(StudioDefaults StudioCadUI StudioDocfa)
 
@@ -22,6 +23,7 @@ Uso: ./ripristina_linux.sh [--data-dir PERCORSO] [--config-file FILE] [--backup-
 
 Ripristina la lista AddOns precedente e i soli moduli Studio salvati dal backup.
 QCAD deve essere chiuso. Se --backup-dir manca viene scelto il backup piu recente.
+Senza --data-dir vengono ripristinate tutte le edizioni QCAD rilevate.
 EOF
 }
 
@@ -57,6 +59,67 @@ detect_config_file() {
     return 1
 }
 
+# QCAD ricava la cartella dati dal nome applicazione: la community usa "QCAD",
+# QCAD Professional usa "QCAD Professional". Le due edizioni condividono
+# QCAD3.conf ma non gli add-on, quindi installare nella cartella sbagliata
+# lascia la palette invisibile senza alcun errore. Il nome applicazione non e'
+# deducibile dai file su disco: lo si chiede a QCAD stesso, in modalita' senza
+# interfaccia e su una configurazione temporanea per non toccare quella reale.
+qcad_launchers() {
+    local launcher directory
+    for launcher in $(command -v qcad 2>/dev/null || true); do
+        printf '%s\n' "$launcher"
+    done
+    while IFS= read -r launcher; do
+        [[ -n "$launcher" ]] || continue
+        directory="$(dirname -- "$launcher")"
+        if [[ -x "$directory/qcad" ]]; then
+            # I lanciatori 'qcad' impostano LD_LIBRARY_PATH: senza di loro
+            # 'qcad-bin' delle build scaricate non parte.
+            printf '%s\n' "$directory/qcad"
+        else
+            printf '%s\n' "$launcher"
+        fi
+    done < <(find "$HOME/opt" "$HOME/.local/opt" /opt /usr/local/lib /usr/lib \
+        -maxdepth 4 -type f -name 'qcad-bin' -print 2>/dev/null || true)
+}
+
+probe_data_dir() {
+    local launcher=$1 probe_script temporary_config output
+    probe_script="$(mktemp "${TMPDIR:-/tmp}/studio-qcad-probe.XXXXXX.js")" || return 1
+    temporary_config="$(mktemp "${TMPDIR:-/tmp}/studio-qcad-conf.XXXXXX")" || {
+        rm -f -- "$probe_script"
+        return 1
+    }
+    printf 'qDebug("STUDIO_DATA_DIR=" + RSettings.getDataLocation());\n' > "$probe_script"
+    output="$(timeout 180 "$launcher" -no-gui -allow-multiple-instances \
+        -config "$temporary_config" -exec "$probe_script" -quit 2>&1 \
+        | sed -n 's/.*STUDIO_DATA_DIR=//p' | head -n 1)" || output=''
+    rm -f -- "$probe_script" "$temporary_config"
+    [[ "$output" == /* ]] || return 1
+    printf '%s\n' "$output"
+}
+
+detect_data_dirs() {
+    local base="${XDG_DATA_HOME:-$HOME/.local/share}/QCAD"
+    local -a dirs=()
+    local launcher detected
+    local -A seen=()
+
+    while IFS= read -r launcher; do
+        [[ -n "$launcher" && -x "$launcher" ]] || continue
+        launcher="$(readlink -f -- "$launcher" 2>/dev/null || printf '%s' "$launcher")"
+        [[ -n "${seen[$launcher]:-}" ]] && continue
+        seen[$launcher]=1
+        if detected="$(probe_data_dir "$launcher")"; then
+            dirs+=("$detected")
+        fi
+    done < <(qcad_launchers)
+
+    [[ ${#dirs[@]} -gt 0 ]] || dirs+=("$base/QCAD")
+    printf '%s\n' "${dirs[@]}" | LC_ALL=C sort -u
+}
+
 write_addons_list() {
     local desired_list=$1 temp_file
     temp_file="$(mktemp "$(dirname -- "$config_file")/.QCAD3.studio.XXXXXX")" || fail 'Impossibile creare il file temporaneo della configurazione.'
@@ -86,16 +149,33 @@ while [[ $# -gt 0 ]]; do
 done
 
 qcad_is_running && fail 'QCAD risulta aperto: chiuderlo completamente prima del ripristino.'
-if [[ -z "$data_dir" ]]; then
-    data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/QCAD/QCAD"
-fi
-require_absolute_path "$data_dir" '--data-dir'
 
 if [[ -z "$config_file" ]]; then
     config_file="$(detect_config_file)" || fail 'Configurazione QCAD non trovata. Usare --config-file FILE.'
 fi
 require_absolute_path "$config_file" '--config-file'
 [[ -f "$config_file" && -w "$config_file" ]] || fail "Configurazione non leggibile o non scrivibile: $config_file"
+
+if [[ -z "$data_dir" ]]; then
+    declare -a detected_data_dirs=()
+    while IFS= read -r detected_data_dir; do
+        [[ -n "$detected_data_dir" ]] && detected_data_dirs+=("$detected_data_dir")
+    done < <(detect_data_dirs)
+    [[ ${#detected_data_dirs[@]} -gt 0 ]] || fail 'Nessuna installazione QCAD rilevata: usare --data-dir PERCORSO.'
+    # Un backup appartiene a una sola cartella dati: con piu' edizioni QCAD si
+    # ripristina un'edizione per volta. Con --backup-dir esplicito la scelta
+    # e' gia' dell utente e non va moltiplicata.
+    if [[ ${#detected_data_dirs[@]} -gt 1 && -z "$backup_dir" ]]; then
+        for detected_data_dir in "${detected_data_dirs[@]}"; do
+            printf 'Edizione QCAD rilevata: %s\n' "$detected_data_dir"
+            "$SCRIPT_DIR/${BASH_SOURCE[0]##*/}" \
+                --data-dir "$detected_data_dir" --config-file "$config_file"
+        done
+        exit 0
+    fi
+    data_dir="${detected_data_dirs[0]}"
+fi
+require_absolute_path "$data_dir" '--data-dir'
 
 if [[ -z "$backup_dir" ]]; then
     backup_root="$(dirname -- "$config_file")/$BACKUP_NAME"
